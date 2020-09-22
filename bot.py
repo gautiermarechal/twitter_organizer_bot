@@ -60,17 +60,18 @@ def check_mentions(api, keywords, since_id):
                     #tweet to categorize
                     tweet_to_categorize = api.get_status(tweet.in_reply_to_status_id)
                     text_to_categorize = tweet_to_categorize._json.get('text')
-                    user_to_categorize = tweet_to_categorize._json.get('user').get('screen_name')
+                    user_to_categorize = tweet_to_categorize._json.get('user').get('name')
+                    user_screen_name_to_categorize = tweet_to_categorize._json.get('user').get('screen_name')
                     date_to_categorize = tweet_to_categorize._json.get('created_at')
 
                     # cursor
                     cursor = conn.cursor()
 
-                    data_send = {'user': user_to_categorize,'category': last_word,
+                    data_send = {'user': user_to_categorize,'user_screen_name': user_screen_name_to_categorize,'category': last_word,
                              'content': text_to_categorize, 'date': date_to_categorize}
 
-                    cursor.execute("INSERT INTO tweet_organized (tweet_organized_content, tweet_organized_category, tweet_organized_date) VALUES (%s,%s,%s) RETURNING tweet_organized_content",
-                     (data_send.get('content'), data_send.get('category'), data_send.get('date')))
+                    cursor.execute("INSERT INTO tweet_organized (tweet_organized_content, tweet_organized_category, tweet_organized_date, user_name, user_screen_name) VALUES (%s,%s,%s,%s,%s) RETURNING tweet_organized_content",
+                     (data_send.get('content'), data_send.get('category'), data_send.get('date'), data_send.get('user'), data_send.get('user_screen_name')))
 
                     inserted_data = cursor.fetchone()[0]
 
