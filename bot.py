@@ -30,14 +30,17 @@ def check_mentions(api, keywords, since_id):
     logger.info("Retrieving mentions")
     new_since_id = since_id
     for tweet in tweepy.Cursor(api.mentions_timeline,
-                               since_id=since_id).items():
+                               since_id=since_id, tweet_mode='extended').items():
         new_since_id = max(tweet.id, new_since_id)
         if tweet.in_reply_to_status_id is not None:
-            print(tweet.text.lower())
-
-            if any(keyword in tweet.text.lower() for keyword in keywords):
+            # print(tweet._json)
+            tweet_json = tweet._json
+            # print("-------------------------------------------------------------------")
+            # print(tweet._json['in_reply_to_status_id'])
+            # print("-------------------------------------------------------------------")
+            if any(keyword in tweet.full_text.lower() for keyword in keywords):
                 logger.info(f"Answering to {tweet.user.name}")
-                splitted_tweet_text = tweet.text.lower().split()
+                splitted_tweet_text = tweet.full_text.lower().split()
                 last_word = splitted_tweet_text[-1]
 
                 if not tweet.user.following:
@@ -57,15 +60,46 @@ def check_mentions(api, keywords, since_id):
                     port=5432,
                     database="twitter_organizer"
                 )
+
+                    list_of_tweets_to_categorize = []
+                    text_to_categorize = []
                     #tweet to categorize
-                    tweet_to_categorize = api.get_status(tweet.in_reply_to_status_id)
-                    text_to_categorize = tweet_to_categorize._json.get('text')
+                    tweet_to_categorize = api.get_status(tweet._json['in_reply_to_status_id'], tweet_mode='extended')
+                    print("GOOD")
+                    list_of_tweets_to_categorize.append(tweet_to_categorize)
+                    text_to_categorize.append(tweet_to_categorize._json.get('full_text'))
                     user_to_categorize = tweet_to_categorize._json.get('user').get('name')
                     user_screen_name_to_categorize = tweet_to_categorize._json.get('user').get('screen_name')
                     date_to_categorize = tweet_to_categorize._json.get('created_at')
+                    print(tweet_to_categorize)
+                    
+                    if(tweet_to_categorize.in_reply_to_status_id is not None):
+                        new_tweet = api.get_status(tweet_to_categorize._json['in_reply_to_status_id'], tweet_mode='extended')
+                        print("GOOD")
+                        while True:
+                            list_of_tweets_to_categorize.append(new_tweet)
+                            text_to_categorize.append(new_tweet._json.get('full_text'))
+                            print("GOODLOOP")
+                            if new_tweet.in_reply_to_status_id is None:
+                                list_of_tweets_to_categorize.append(new_tweet)
+                                text_to_categorize.append(new_tweet._json.get('full_text'))
+                                break
+                            new_tweet = api.get_status(new_tweet._json['in_reply_to_status_id'], tweet_mode='extended')
+
 
                     # cursor
                     cursor = conn.cursor()
+                    print("USER")
+                    print(user_to_categorize)
+                    print("USER SCREEN NAME")
+                    print(user_screen_name_to_categorize)
+                    print("CONTENT")
+                    print(text_to_categorize)
+                    print("CATEGORY")
+                    print(last_word)
+                    print("DATE")
+                    print(date_to_categorize)
+
 
                     data_send = {'user': user_to_categorize,'user_screen_name': user_screen_name_to_categorize,'category': last_word,
                              'content': text_to_categorize, 'date': date_to_categorize}
