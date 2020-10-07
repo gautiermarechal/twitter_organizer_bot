@@ -65,21 +65,17 @@ def check_mentions(api, keywords, since_id):
                     text_to_categorize = []
                     #tweet to categorize
                     tweet_to_categorize = api.get_status(tweet._json['in_reply_to_status_id'], tweet_mode='extended')
-                    print("GOOD")
                     list_of_tweets_to_categorize.append(tweet_to_categorize)
                     text_to_categorize.append(tweet_to_categorize._json.get('full_text'))
                     user_to_categorize = tweet_to_categorize._json.get('user').get('name')
                     user_screen_name_to_categorize = tweet_to_categorize._json.get('user').get('screen_name')
                     date_to_categorize = tweet_to_categorize._json.get('created_at')
-                    print(tweet_to_categorize)
                     
                     if(tweet_to_categorize.in_reply_to_status_id is not None):
                         new_tweet = api.get_status(tweet_to_categorize._json['in_reply_to_status_id'], tweet_mode='extended')
-                        print("GOOD")
                         while True:
                             list_of_tweets_to_categorize.append(new_tweet)
-                            text_to_categorize.append(new_tweet._json.get('full_text'))
-                            print("GOODLOOP")
+                            text_to_categorize.append(new_tweet._json.get('full_text') + "\n")
                             if new_tweet.in_reply_to_status_id is None:
                                 list_of_tweets_to_categorize.append(new_tweet)
                                 text_to_categorize.append(new_tweet._json.get('full_text'))
@@ -94,15 +90,19 @@ def check_mentions(api, keywords, since_id):
                     print("USER SCREEN NAME")
                     print(user_screen_name_to_categorize)
                     print("CONTENT")
-                    print(text_to_categorize)
+                    print(list(reversed(text_to_categorize)))
                     print("CATEGORY")
                     print(last_word)
                     print("DATE")
                     print(date_to_categorize)
 
+                    reversedcontent = list(reversed(text_to_categorize))
+
+                    del reversedcontent[0]
+                    
 
                     data_send = {'user': user_to_categorize,'user_screen_name': user_screen_name_to_categorize,'category': last_word,
-                             'content': text_to_categorize, 'date': date_to_categorize}
+                             'content': reversedcontent, 'date': date_to_categorize}
 
                     cursor.execute("INSERT INTO tweet_organized (tweet_organized_content, tweet_organized_category, tweet_organized_date, user_name, user_screen_name) VALUES (%s,%s,%s,%s,%s) RETURNING tweet_organized_content",
                      (data_send.get('content'), data_send.get('category'), data_send.get('date'), data_send.get('user'), data_send.get('user_screen_name')))
