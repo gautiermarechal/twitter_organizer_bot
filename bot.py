@@ -99,10 +99,16 @@ def check_mentions(api, keywords, since_id):
                     reversedcontent = list(reversed(text_to_categorize))
 
                     del reversedcontent[0]
-                    
 
+                    final_text = []
+
+                    for text in reversedcontent:
+                        text += "\n"
+                        final_text.append(text)
+
+                    print(final_text)
                     data_send = {'user': user_to_categorize,'user_screen_name': user_screen_name_to_categorize,'category': last_word,
-                             'content': reversedcontent, 'date': date_to_categorize}
+                             'content': final_text, 'date': date_to_categorize}
 
                     cursor.execute("INSERT INTO tweet_organized (tweet_organized_content, tweet_organized_category, tweet_organized_date, user_name, user_screen_name) VALUES (%s,%s,%s,%s,%s) RETURNING tweet_organized_content",
                      (data_send.get('content'), data_send.get('category'), data_send.get('date'), data_send.get('user'), data_send.get('user_screen_name')))
