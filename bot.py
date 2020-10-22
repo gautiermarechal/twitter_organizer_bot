@@ -26,18 +26,16 @@ except:
 
 def check_mentions(api, keywords, since_id):
     statuses = api.mentions_timeline()
-    print(str(len(statuses)) + " number of statuses have been mentioned")
     logger.info("Retrieving mentions")
     new_since_id = since_id
     for tweet in tweepy.Cursor(api.mentions_timeline,
                                since_id=since_id, tweet_mode='extended').items():
         new_since_id = max(tweet.id, new_since_id)
         if tweet.in_reply_to_status_id is not None:
-            # print(tweet._json)
+           
             tweet_json = tweet._json
-            # print("-------------------------------------------------------------------")
-            # print(tweet._json['in_reply_to_status_id'])
-            # print("-------------------------------------------------------------------")
+           
+            
             if any(keyword in tweet.full_text.lower() for keyword in keywords):
                 logger.info(f"Answering to {tweet.user.name}")
                 splitted_tweet_text = tweet.full_text.lower().split()
@@ -67,6 +65,13 @@ def check_mentions(api, keywords, since_id):
                     tweet_to_categorize = api.get_status(tweet._json['in_reply_to_status_id'], tweet_mode='extended')
                     list_of_tweets_to_categorize.append(tweet_to_categorize)
                     text_to_categorize.append(tweet_to_categorize._json.get('full_text'))
+
+                    #Get user object
+                    user_object = api.get_user(tweet_to_categorize._json.get('in_reply_to_user_id_str'))
+                    user_object_name_to_categorize = user_object._json.get('name')
+                    user_object_screen_name_to_categorize = user_object._json.get('screen_name')
+                    user_object_image_url_to_categorize = user_object._json.get('profile_image_url_https')
+                    print(user_object_image_url_to_categorize)
                     user_to_categorize = tweet_to_categorize._json.get('user').get('name')
                     user_screen_name_to_categorize = tweet_to_categorize._json.get('user').get('screen_name')
                     date_to_categorize = tweet_to_categorize._json.get('created_at')
@@ -85,16 +90,16 @@ def check_mentions(api, keywords, since_id):
 
                     # cursor
                     cursor = conn.cursor()
-                    print("USER")
-                    print(user_to_categorize)
-                    print("USER SCREEN NAME")
-                    print(user_screen_name_to_categorize)
-                    print("CONTENT")
-                    print(list(reversed(text_to_categorize)))
-                    print("CATEGORY")
-                    print(last_word)
-                    print("DATE")
-                    print(date_to_categorize)
+                    # print("USER")
+                    # print(user_to_categorize)
+                    # print("USER SCREEN NAME")
+                    # print(user_screen_name_to_categorize)
+                    # print("CONTENT")
+                    # print(list(reversed(text_to_categorize)))
+                    # print("CATEGORY")
+                    # print(last_word)
+                    # print("DATE")
+                    # print(date_to_categorize)
 
                     reversedcontent = list(reversed(text_to_categorize))
 
@@ -106,12 +111,12 @@ def check_mentions(api, keywords, since_id):
                         text += "\n"
                         final_text.append(text)
 
-                    print(final_text)
-                    data_send = {'user': user_to_categorize,'user_screen_name': user_screen_name_to_categorize,'category': last_word,
+                    # print(final_text)
+                    data_send = {'user': user_object_name_to_categorize,'user_screen_name': user_object_screen_name_to_categorize, 'user_image_url': user_object_image_url_to_categorize,'category': last_word,
                              'content': final_text, 'date': date_to_categorize}
 
-                    cursor.execute("INSERT INTO tweet_organized (tweet_organized_content, tweet_organized_category, tweet_organized_date, user_name, user_screen_name) VALUES (%s,%s,%s,%s,%s) RETURNING tweet_organized_content",
-                     (data_send.get('content'), data_send.get('category'), data_send.get('date'), data_send.get('user'), data_send.get('user_screen_name')))
+                    cursor.execute("INSERT INTO tweet_organized (tweet_organized_content, tweet_organized_category, tweet_organized_date, user_name, user_screen_name, user_image_url) VALUES (%s,%s,%s,%s,%s,%s) RETURNING tweet_organized_content",
+                     (data_send.get('content'), data_send.get('category'), data_send.get('date'), data_send.get('user'), data_send.get('user_screen_name'), data_send.get('user_image_url')))
 
                     inserted_data = cursor.fetchone()[0]
 
