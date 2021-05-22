@@ -3,7 +3,11 @@ import logging
 import time
 import requests
 import psycopg2
+import uuid
 from config import config
+import psycopg2.extras
+
+psycopg2.extras.register_uuid()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
@@ -71,7 +75,7 @@ def check_mentions(api, keywords, since_id):
                     user_object_name_to_categorize = user_object._json.get('name')
                     user_object_screen_name_to_categorize = user_object._json.get('screen_name')
                     user_object_image_url_to_categorize = user_object._json.get('profile_image_url_https')
-                    print(user_object_image_url_to_categorize)
+                    # print(user_object_image_url_to_categorize)
                     user_to_categorize = tweet_to_categorize._json.get('user').get('name')
                     user_screen_name_to_categorize = tweet_to_categorize._json.get('user').get('screen_name')
                     date_to_categorize = tweet_to_categorize._json.get('created_at')
@@ -114,10 +118,30 @@ def check_mentions(api, keywords, since_id):
                     # print(final_text)
                     data_send = {'user': user_object_name_to_categorize,'user_screen_name': user_object_screen_name_to_categorize, 'user_image_url': user_object_image_url_to_categorize,'category': last_word,
                              'content': final_text, 'date': date_to_categorize}
-
-                    cursor.execute("INSERT INTO tweet_organized (tweet_organized_content, tweet_organized_category, tweet_organized_date, user_name, user_screen_name, user_image_url) VALUES (%s,%s,%s,%s,%s,%s) RETURNING tweet_organized_content",
-                     (data_send.get('content'), data_send.get('category'), data_send.get('date'), data_send.get('user'), data_send.get('user_screen_name'), data_send.get('user_image_url')))
-
+                    new_tweet_uuid = uuid.uuid4()
+                    print(new_tweet_uuid)
+                    cursor.execute("INSERT INTO tweet_organized (tweet_organized_id, tweet_organized_content, tweet_organized_category, tweet_organized_date, user_name, user_screen_name, user_image_url) VALUES (%s, %s,%s,%s,%s,%s,%s) RETURNING tweet_organized_content;",
+                     (new_tweet_uuid, data_send.get('content'), data_send.get('category'), data_send.get('date'), data_send.get('user'), data_send.get('user_screen_name'), data_send.get('user_image_url')))
+                    #Create new twitter user if not exists, otherwise append to existing array
+                    cursor.execute(
+                        """
+                        INSERT INTO twitter_user (id, tweets_organized) 
+                        VALUES (%s, {%s})
+                        ON CONFLICT (id) DO UPDATE 
+                        SET tweets_organized = array_append(twitter_user.tweets_organized, %s) WHERE ((twitter_user.id)::text = %s::text);
+                        """,
+                    (data_send.get('user_screen_name'),new_tweet_uuid, new_tweet_uuid , data_send.get('user_screen_name')))
+#                         DO $$
+#                         BEGIN
+#                         SELECT * FROM twitter_user WHERE id = %s;
+#                         IF FOUND THEN
+#                             UPDATE twitter_user
+#                             SET tweets_organized = array_append(tweets_organized, %s) WHERE id = %s;
+#                         ELSE
+#                             INSERT INTO twitter_user (id, tweets_organized) VALUES (%s, %s);
+#                         END IF;
+#                         RETURN *;
+#                         END $$
                     inserted_data = cursor.fetchone()[0]
 
                     conn.commit()
