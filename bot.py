@@ -126,9 +126,10 @@ def check_mentions(api, keywords, since_id):
                     cursor.execute(
                         """
                         INSERT INTO twitter_user (id, tweets_organized) 
-                        VALUES (%s, {%s})
+                        VALUES (%s, ARRAY[%s])
                         ON CONFLICT (id) DO UPDATE 
-                        SET tweets_organized = array_append(twitter_user.tweets_organized, %s) WHERE ((twitter_user.id)::text = %s::text);
+                        SET tweets_organized = array_append(twitter_user.tweets_organized, %s) WHERE ((twitter_user.id)::text = %s::text)
+                        RETURNING *;
                         """,
                     (data_send.get('user_screen_name'),new_tweet_uuid, new_tweet_uuid , data_send.get('user_screen_name')))
 #                         DO $$
