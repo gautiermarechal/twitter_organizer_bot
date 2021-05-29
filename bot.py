@@ -6,6 +6,7 @@ import psycopg2
 import uuid
 from config import config
 import psycopg2.extras
+import json
 
 psycopg2.extras.register_uuid()
 
@@ -65,17 +66,23 @@ def check_mentions(api, keywords, since_id):
 
                     list_of_tweets_to_categorize = []
                     text_to_categorize = []
+                    text_to_categorize_dict = {}
+                    test_list = []
                     #tweet to categorize
                     tweet_to_categorize = api.get_status(tweet._json['in_reply_to_status_id'], tweet_mode='extended')
                     list_of_tweets_to_categorize.append(tweet_to_categorize)
                     text_to_categorize.append(tweet_to_categorize._json.get('full_text'))
+                    text_to_categorize_dict['text'] = tweet_to_categorize._json.get('full_text')
+                    text_to_categorize_dict['id'] = tweet_to_categorize._json.get('id')
+                    test_list.append(text_to_categorize_dict)
+                    # print("1: -------------------------\n")
+                    # print(test_list)
 
                     #Get user object
                     user_object = api.get_user(tweet_to_categorize._json.get('in_reply_to_user_id_str'))
                     user_object_name_to_categorize = user_object._json.get('name')
                     user_object_screen_name_to_categorize = user_object._json.get('screen_name')
                     user_object_image_url_to_categorize = user_object._json.get('profile_image_url_https')
-                    # print(user_object_image_url_to_categorize)
                     user_to_categorize = tweet_to_categorize._json.get('user').get('name')
                     user_screen_name_to_categorize = tweet_to_categorize._json.get('user').get('screen_name')
                     date_to_categorize = tweet_to_categorize._json.get('created_at')
@@ -83,39 +90,56 @@ def check_mentions(api, keywords, since_id):
                     if(tweet_to_categorize.in_reply_to_status_id is not None):
                         new_tweet = api.get_status(tweet_to_categorize._json['in_reply_to_status_id'], tweet_mode='extended')
                         while True:
+                            text_to_categorize_dict_loop = {}
                             list_of_tweets_to_categorize.append(new_tweet)
                             text_to_categorize.append(new_tweet._json.get('full_text') + "\n")
+                            text_to_categorize_dict_loop['text'] = new_tweet._json.get('full_text') + "\n"
+                            text_to_categorize_dict_loop['id'] = new_tweet._json.get('id')
+                            test_list.append(text_to_categorize_dict_loop)
+                            # print("2: -------------------------\n")
+                            # print(test_list)
                             if new_tweet.in_reply_to_status_id is None:
+                                text_to_categorize_dict_loop_1 = {}
                                 list_of_tweets_to_categorize.append(new_tweet)
                                 text_to_categorize.append(new_tweet._json.get('full_text'))
+                                text_to_categorize_dict_loop_1['text'] = new_tweet._json.get('full_text') + "\n"
+                                text_to_categorize_dict_loop_1['id'] = new_tweet._json.get('id')
+                                test_list.append(text_to_categorize_dict_loop_1)
+                                # print("3: -------------------------\n")
+                                # print(test_list)
                                 break
                             new_tweet = api.get_status(new_tweet._json['in_reply_to_status_id'], tweet_mode='extended')
 
 
                     # cursor
                     cursor = conn.cursor()
-                    # print("USER")
-                    # print(user_to_categorize)
-                    # print("USER SCREEN NAME")
-                    # print(user_screen_name_to_categorize)
-                    # print("CONTENT")
-                    # print(list(reversed(text_to_categorize)))
-                    # print("CATEGORY")
-                    # print(last_word)
-                    # print("DATE")
-                    # print(date_to_categorize)
+
+                    # print(test_list)
+
+                    # print(text_to_categorize)
 
                     reversedcontent = list(reversed(text_to_categorize))
-
                     del reversedcontent[0]
 
-                    final_text = []
+                    reversed_list_dict = list(reversed(test_list))
+                    del reversed_list_dict[0]
 
+
+                    final_text = []
                     for text in reversedcontent:
                         text += "\n"
                         final_text.append(text)
 
+                    final_text_dict = []
+                    for dict_item in reversed_list_dict:
+                        dict_item['text'] += "\n"
+                        final_text_dict.append(dict_item)
+                    
+                    json_final_dict = json.dumps(final_text_dict)
+
                     # print(final_text)
+                    # print(final_text_dict)
+                    print(json_final_dict)
                     data_send = {'user': user_object_name_to_categorize,'user_screen_name': user_object_screen_name_to_categorize, 'user_image_url': user_object_image_url_to_categorize,'category': last_word,
                              'content': final_text, 'date': date_to_categorize}
                     new_tweet_uuid = uuid.uuid4()
@@ -132,17 +156,6 @@ def check_mentions(api, keywords, since_id):
                         RETURNING *;
                         """,
                     (data_send.get('user_screen_name'),new_tweet_uuid, new_tweet_uuid , data_send.get('user_screen_name')))
-#                         DO $$
-#                         BEGIN
-#                         SELECT * FROM twitter_user WHERE id = %s;
-#                         IF FOUND THEN
-#                             UPDATE twitter_user
-#                             SET tweets_organized = array_append(tweets_organized, %s) WHERE id = %s;
-#                         ELSE
-#                             INSERT INTO twitter_user (id, tweets_organized) VALUES (%s, %s);
-#                         END IF;
-#                         RETURN *;
-#                         END $$
                     inserted_data = cursor.fetchone()[0]
 
                     conn.commit()
