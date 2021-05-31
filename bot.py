@@ -141,10 +141,10 @@ def check_mentions(api, keywords, since_id):
                     # print(final_text_dict)
                     print(json_final_dict)
                     data_send = {'user': user_object_name_to_categorize,'user_screen_name': user_object_screen_name_to_categorize, 'user_image_url': user_object_image_url_to_categorize,'category': last_word,
-                             'content': final_text, 'date': date_to_categorize}
+                             'content': json_final_dict, 'date': date_to_categorize}
                     new_tweet_uuid = uuid.uuid4()
-                    print(new_tweet_uuid)
-                    cursor.execute("INSERT INTO tweet_organized (tweet_organized_id, tweet_organized_content, tweet_organized_category, tweet_organized_date, user_name, user_screen_name, user_image_url) VALUES (%s, %s,%s,%s,%s,%s,%s) RETURNING tweet_organized_content;",
+                    # print(new_tweet_uuid)
+                    cursor.execute("INSERT INTO tweet_organized (tweet_organized_id, tweet_organized_content, tweet_organized_category, tweet_organized_date, user_name, user_screen_name, user_image_url) VALUES (%s, ARRAY[%s]::json[],%s,%s,%s,%s,%s) RETURNING tweet_organized_content;",
                      (new_tweet_uuid, data_send.get('content'), data_send.get('category'), data_send.get('date'), data_send.get('user'), data_send.get('user_screen_name'), data_send.get('user_image_url')))
                     #Create new twitter user if not exists, otherwise append to existing array
                     cursor.execute(
