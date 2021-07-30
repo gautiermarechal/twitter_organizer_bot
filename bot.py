@@ -7,6 +7,8 @@ import uuid
 from config import config
 import psycopg2.extras
 import json
+import time
+import math
 
 psycopg2.extras.register_uuid()
 
@@ -75,8 +77,6 @@ def check_mentions(api, keywords, since_id):
                     text_to_categorize_dict['text'] = tweet_to_categorize._json.get('full_text')
                     text_to_categorize_dict['id'] = tweet_to_categorize._json.get('id')
                     test_list.append(text_to_categorize_dict)
-                    # print("1: -------------------------\n")
-                    # print(test_list)
 
                     #Get user object
                     user_object = api.get_user(tweet_to_categorize._json.get('in_reply_to_user_id_str'))
@@ -96,8 +96,7 @@ def check_mentions(api, keywords, since_id):
                             text_to_categorize_dict_loop['text'] = new_tweet._json.get('full_text') + "\n"
                             text_to_categorize_dict_loop['id'] = new_tweet._json.get('id')
                             test_list.append(text_to_categorize_dict_loop)
-                            # print("2: -------------------------\n")
-                            # print(test_list)
+                
                             if new_tweet.in_reply_to_status_id is None:
                                 text_to_categorize_dict_loop_1 = {}
                                 list_of_tweets_to_categorize.append(new_tweet)
@@ -105,18 +104,12 @@ def check_mentions(api, keywords, since_id):
                                 text_to_categorize_dict_loop_1['text'] = new_tweet._json.get('full_text') + "\n"
                                 text_to_categorize_dict_loop_1['id'] = new_tweet._json.get('id')
                                 test_list.append(text_to_categorize_dict_loop_1)
-                                # print("3: -------------------------\n")
-                                # print(test_list)
                                 break
                             new_tweet = api.get_status(new_tweet._json['in_reply_to_status_id'], tweet_mode='extended')
 
 
                     # cursor
                     cursor = conn.cursor()
-
-                    # print(test_list)
-
-                    # print(text_to_categorize)
 
                     reversedcontent = list(reversed(text_to_categorize))
                     del reversedcontent[0]
@@ -137,13 +130,9 @@ def check_mentions(api, keywords, since_id):
                     
                     json_final_dict = json.dumps(final_text_dict)
 
-                    # print(final_text)
-                    # print(final_text_dict)
-                    print(json_final_dict)
                     data_send = {'user': user_object_name_to_categorize,'user_screen_name': user_object_screen_name_to_categorize, 'user_image_url': user_object_image_url_to_categorize,'category': last_word,
                              'content': json_final_dict, 'date': date_to_categorize}
                     new_tweet_uuid = uuid.uuid4()
-                    # print(new_tweet_uuid)
                     cursor.execute("INSERT INTO tweet_organized (tweet_organized_id, tweet_organized_content, tweet_organized_category, tweet_organized_date, user_name, user_screen_name, user_image_url) VALUES (%s, ARRAY[%s]::json[],%s,%s,%s,%s,%s) RETURNING tweet_organized_content;",
                      (new_tweet_uuid, data_send.get('content'), data_send.get('category'), data_send.get('date'), data_send.get('user'), data_send.get('user_screen_name'), data_send.get('user_image_url')))
                     #Create new twitter user if not exists, otherwise append to existing array
@@ -156,7 +145,22 @@ def check_mentions(api, keywords, since_id):
                         RETURNING *;
                         """,
                     (data_send.get('user_screen_name'),new_tweet_uuid, new_tweet_uuid , data_send.get('user_screen_name')))
-                    inserted_data = cursor.fetchone()[0]
+
+                    #Create new category user if not exists, otherwise do nothing
+                    cursor.execute(
+                        """
+                        INSERT INTO categories (id, is_default, created_at, name)
+                        VALUES (%s, false ,%s, %s)
+                        ON CONFLICT (id) DO NOTHING
+                        RETURNING *;
+                        """, (
+                            data_send.get("category").lower(), int(time.time()), data_send.get("category").capitalize())
+                    )
+
+                    # print(cursor.fetchone())
+                    
+
+                    # inserted_data = cursor.fetchone()[0]
 
                     conn.commit()
 
